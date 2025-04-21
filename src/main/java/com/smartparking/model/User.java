@@ -1,7 +1,8 @@
-package model;
+package com.smartparking.model;
 
 import jakarta.persistence.*;
 import java.util.List;
+import com.smartparking.util.DatabaseUtil;
 
 @Entity
 @Table(name = "users")
@@ -101,4 +102,4 @@ public class User {
             em.close();
         }
     }
-}
+} 
