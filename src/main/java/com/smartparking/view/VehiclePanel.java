@@ -45,60 +45,70 @@ public class VehiclePanel extends JPanel {
 
     private void showAddVehicleDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Add New Vehicle", true);
-        dialog.setLayout(new GridLayout(4, 2, 5, 5));
-        
+        dialog.setLayout(new BorderLayout());
+
+        // Fields panel for labels and text fields
+        JPanel fieldsPanel = new JPanel(new GridLayout(4, 2, 5, 5));
+        fieldsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         JTextField licensePlateField = new JTextField();
         JTextField makeField = new JTextField();
         JTextField modelField = new JTextField();
         JTextField userIdField = new JTextField();
-        
-        dialog.add(new JLabel("License Plate:"));
-        dialog.add(licensePlateField);
-        dialog.add(new JLabel("Make:"));
-        dialog.add(makeField);
-        dialog.add(new JLabel("Model:"));
-        dialog.add(modelField);
-        dialog.add(new JLabel("User ID:"));
-        dialog.add(userIdField);
-        
+
+        fieldsPanel.add(new JLabel("License Plate:"));
+        fieldsPanel.add(licensePlateField);
+        fieldsPanel.add(new JLabel("Make:"));
+        fieldsPanel.add(makeField);
+        fieldsPanel.add(new JLabel("Model:"));
+        fieldsPanel.add(modelField);
+        fieldsPanel.add(new JLabel("User ID:"));
+        fieldsPanel.add(userIdField);
+
+        dialog.add(fieldsPanel, BorderLayout.CENTER);
+
+        // Save button centered in its own panel
         JButton saveButton = new JButton("Save");
         saveButton.addActionListener(e -> {
             String licensePlate = licensePlateField.getText();
             String make = makeField.getText();
             String model = modelField.getText();
             String userId = userIdField.getText();
-            
+
             if (!licensePlate.isEmpty() && !make.isEmpty() && !model.isEmpty() && !userId.isEmpty()) {
                 try {
                     Long userIdLong = Long.parseLong(userId);
                     try {
                         Vehicle createdVehicle = vehicleController.createVehicle(licensePlate, make, model, userIdLong);
-                        JOptionPane.showMessageDialog(dialog, 
+                        JOptionPane.showMessageDialog(dialog,
                             "Vehicle created successfully!\nLicense Plate: " + createdVehicle.getLicensePlate(),
                             "Success",
                             JOptionPane.INFORMATION_MESSAGE);
                         dialog.dispose();
                     } catch (IllegalArgumentException ex) {
-                        JOptionPane.showMessageDialog(dialog, 
+                        JOptionPane.showMessageDialog(dialog,
                             ex.getMessage(),
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(dialog, 
+                    JOptionPane.showMessageDialog(dialog,
                         "Invalid User ID format. Please enter a valid number.",
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
                 }
             } else {
-                JOptionPane.showMessageDialog(dialog, 
+                JOptionPane.showMessageDialog(dialog,
                     "Please fill all fields",
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
             }
         });
-        
-        dialog.add(saveButton);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        buttonPanel.add(saveButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
         dialog.pack();
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);

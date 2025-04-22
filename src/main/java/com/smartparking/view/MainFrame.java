@@ -30,26 +30,9 @@ public class MainFrame extends JFrame {
         tabbedPane.addTab("Parking Map", new ParkingMapPanel(sharedSpotController));
         tabbedPane.addTab("Parking", new ParkingPanel(sharedSpotController, sharedReservationController));
         tabbedPane.addTab("Reservations", new ReservationPanel(sharedSpotController, sharedReservationController));
-        tabbedPane.addTab("Payment", new JPanel()); // Placeholder for dynamic panel
+        tabbedPane.addTab("Payment", new PaymentPanel()); // Create PaymentPanel directly
 
-        // Add tab change listener to dynamically load PaymentPanel
-        tabbedPane.addChangeListener(e -> {
-            int selectedIndex = tabbedPane.getSelectedIndex();
-            String selectedTitle = tabbedPane.getTitleAt(selectedIndex);
-
-            if (selectedTitle.equals("Payment")) {
-                Reservation latestReservation = sharedReservationController.getLastReservation();
-                if (latestReservation != null) {
-                    PaymentPanel paymentPanel = new PaymentPanel(latestReservation);
-                    tabbedPane.setComponentAt(selectedIndex, paymentPanel);
-                } else {
-                    JPanel emptyPanel = new JPanel();
-                    emptyPanel.add(new JLabel("No reservation found. Please make a reservation first."));
-                    tabbedPane.setComponentAt(selectedIndex, emptyPanel);
-                }
-            }
-        });
-
+        // Add the tabbed pane to the frame
         add(tabbedPane);
         setVisible(true);
     }

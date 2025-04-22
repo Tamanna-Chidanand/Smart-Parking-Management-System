@@ -32,6 +32,15 @@ public class ReservationController {
             throw new IllegalArgumentException("Vehicle with ID " + vehicleId + " does not belong to user with ID " + userId);
         }
         
+        // Check if vehicle already has an active reservation
+        if (hasActiveReservationForVehicle(vehicleId)) {
+            Reservation existingReservation = getActiveReservationForVehicle(vehicleId);
+            throw new IllegalArgumentException("Vehicle already has an active reservation (ID: " + existingReservation.getId() + 
+                                             ", Spot: " + existingReservation.getSpotId() + 
+                                             ", Start: " + existingReservation.getStartTime() + 
+                                             ", End: " + existingReservation.getEndTime() + ")");
+        }
+        
         // Check if spot is available for the requested time period
         if (!parkingSpotController.isSpotAvailable(spotId, endTime)) {
             return null;
@@ -52,6 +61,15 @@ public class ReservationController {
     }
     
     public Reservation createReservation(Reservation reservation) {
+        // Check if vehicle already has an active reservation
+        if (hasActiveReservationForVehicle(reservation.getVehicleId())) {
+            Reservation existingReservation = getActiveReservationForVehicle(reservation.getVehicleId());
+            throw new IllegalArgumentException("Vehicle already has an active reservation (ID: " + existingReservation.getId() + 
+                                             ", Spot: " + existingReservation.getSpotId() + 
+                                             ", Start: " + existingReservation.getStartTime() + 
+                                             ", End: " + existingReservation.getEndTime() + ")");
+        }
+        
         // Check if spot is available for the requested time period
         if (!parkingSpotController.isSpotAvailable(reservation.getSpotId(), reservation.getEndTime())) {
             return null;
@@ -171,5 +189,21 @@ public class ReservationController {
                 }
             }
         }
+    }
+    
+    public boolean hasActiveReservationForVehicle(Long vehicleId) {
+        List<Reservation> allReservations = Reservation.readAll();
+        return allReservations.stream()
+            .filter(reservation -> reservation.getVehicleId().equals(vehicleId))
+            .anyMatch(reservation -> "ACTIVE".equals(reservation.getStatus()));
+    }
+    
+    public Reservation getActiveReservationForVehicle(Long vehicleId) {
+        List<Reservation> allReservations = Reservation.readAll();
+        return allReservations.stream()
+            .filter(reservation -> reservation.getVehicleId().equals(vehicleId))
+            .filter(reservation -> "ACTIVE".equals(reservation.getStatus()))
+            .findFirst()
+            .orElse(null);
     }
 } 

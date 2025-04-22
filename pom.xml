@@ -36,6 +36,20 @@
             <artifactId>hibernate-core</artifactId>
             <version>6.2.13.Final</version>
         </dependency>
+
+        <!-- ZXing Core -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.2</version>
+        </dependency>
+        
+        <!-- ZXing JavaSE -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.2</version>
+        </dependency>
     </dependencies>
 
     <build>

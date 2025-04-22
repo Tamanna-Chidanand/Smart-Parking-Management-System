@@ -1,7 +1,9 @@
 package com.smartparking.controller;
 
 import com.smartparking.model.ParkingSpot;
+import com.smartparking.model.Reservation;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,10 +14,10 @@ public class ParkingSpotController {
     }
     
     private void initializeParkingSpots() {
-        // First, delete all existing spots to ensure a clean slate
+        // Check if spots already exist
         List<ParkingSpot> existingSpots = ParkingSpot.readAll();
-        for (ParkingSpot spot : existingSpots) {
-            ParkingSpot.delete(spot.getId());
+        if (!existingSpots.isEmpty()) {
+            return; // Spots already exist, no need to recreate them
         }
 
         // Create a 4x4 grid of parking spots (16 total)
@@ -65,7 +67,14 @@ public class ParkingSpotController {
         if (spot == null || !spot.isAvailable()) {
             return false;
         }
-        return true;
+        
+        // Check for active reservations
+        List<Reservation> activeReservations = Reservation.readAll().stream()
+            .filter(reservation -> reservation.getSpotId().equals(spotId) && 
+                   "ACTIVE".equals(reservation.getStatus()))
+            .collect(Collectors.toList());
+            
+        return activeReservations.isEmpty();
     }
     
     public void markSpotAsOccupied(Long spotId) {
@@ -87,5 +96,19 @@ public class ParkingSpotController {
     public ParkingSpot createSpot(String spotNumber, String type) {
         ParkingSpot spot = new ParkingSpot(spotNumber, type);
         return ParkingSpot.create(spot);
+    }
+    
+    public List<ParkingSpot> getAvailableSpots() {
+        List<ParkingSpot> availableSpots = new ArrayList<>();
+        for (ParkingSpot spot : ParkingSpot.readAll()) {
+            if (isSpotAvailable(spot.getId(), LocalDateTime.now())) {
+                availableSpots.add(spot);
+            }
+        }
+        return availableSpots;
+    }
+    
+    public ParkingSpot getSpotById(Long id) {
+        return ParkingSpot.read(id);
     }
 } 

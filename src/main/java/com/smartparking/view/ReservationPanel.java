@@ -3,6 +3,7 @@ package com.smartparking.view;
 import com.smartparking.controller.ParkingSpotController;
 import com.smartparking.controller.ReservationController;
 import com.smartparking.model.Reservation;
+import com.smartparking.model.ParkingSpot;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -10,12 +11,14 @@ import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ReservationPanel extends JPanel {
     private final ParkingSpotController spotController;
     private final ReservationController reservationController;
     private JTable reservationTable;
     private DefaultTableModel tableModel;
+    private JTabbedPane tabbedPane;
 
     public ReservationPanel(ParkingSpotController spotController, ReservationController reservationController) {
         this.spotController = spotController;
@@ -23,6 +26,23 @@ public class ReservationPanel extends JPanel {
         
         setLayout(new BorderLayout());
 
+        // Create tabbed pane
+        tabbedPane = new JTabbedPane();
+        
+        // Create active reservations tab
+        JPanel activeTab = createActiveReservationsTab();
+        tabbedPane.addTab("Active Reservations", activeTab);
+        
+        // Create past reservations tab
+        JPanel pastTab = createPastReservationsTab();
+        tabbedPane.addTab("Past Reservations", pastTab);
+        
+        add(tabbedPane, BorderLayout.CENTER);
+    }
+    
+    private JPanel createActiveReservationsTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
         // Create top panel for controls
         JPanel topPanel = new JPanel(new FlowLayout());
         
@@ -35,10 +55,10 @@ public class ReservationPanel extends JPanel {
         topPanel.add(cancelBtn);
         topPanel.add(extendBtn);
         
-        add(topPanel, BorderLayout.NORTH);
+        panel.add(topPanel, BorderLayout.NORTH);
 
         // Create table model
-        String[] columnNames = {"ID", "Spot ID", "User ID", "Vehicle ID", "Start Time", "End Time", "Status"};
+        String[] columnNames = {"ID", "Spot Number", "User ID", "Vehicle ID", "Start Time", "End Time", "Status"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -48,31 +68,92 @@ public class ReservationPanel extends JPanel {
         
         // Create table
         reservationTable = new JTable(tableModel);
-        JScrollPane tableScrollPane = new JScrollPane(reservationTable);
-        add(tableScrollPane, BorderLayout.CENTER);
-
-        // Add action listeners
+        JScrollPane scrollPane = new JScrollPane(reservationTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Add button listeners
         viewActiveBtn.addActionListener(e -> viewActiveReservations());
         cancelBtn.addActionListener(e -> cancelReservation());
         extendBtn.addActionListener(e -> extendReservation());
+        
+        return panel;
+    }
+    
+    private JPanel createPastReservationsTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        // Create top panel for controls
+        JPanel topPanel = new JPanel(new FlowLayout());
+        
+        // Add button
+        JButton viewPastBtn = new JButton("View Past Reservations");
+        topPanel.add(viewPastBtn);
+        
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Create table model
+        String[] columnNames = {"ID", "Spot Number", "User ID", "Vehicle ID", "Start Time", "End Time", "Status"};
+        DefaultTableModel pastTableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        // Create table
+        JTable pastReservationTable = new JTable(pastTableModel);
+        JScrollPane scrollPane = new JScrollPane(pastReservationTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Add button listener
+        viewPastBtn.addActionListener(e -> viewPastReservations(pastTableModel));
+        
+        return panel;
+    }
+    
+    private void viewPastReservations(DefaultTableModel tableModel) {
+        // Clear the table
+        tableModel.setRowCount(0);
+        
+        // Get all reservations
+        List<Reservation> allReservations = reservationController.getAllReservations();
+        
+        // Filter for completed and cancelled reservations
+        List<Reservation> pastReservations = allReservations.stream()
+            .filter(reservation -> "COMPLETED".equals(reservation.getStatus()) || 
+                                "CANCELLED".equals(reservation.getStatus()))
+            .collect(Collectors.toList());
+        
+        // Sort by end time in descending order (most recent first)
+        pastReservations.sort((r1, r2) -> r2.getEndTime().compareTo(r1.getEndTime()));
+        
+        // Update the table
+        updateTableWithReservations(tableModel, pastReservations);
+        
+        // Show message if no past reservations found
+        if (pastReservations.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                "No past reservations found.", 
+                "Past Reservations", 
+                JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     private void viewActiveReservations() {
+        // Clear the table
+        tableModel.setRowCount(0);
+        
+        // Get active reservations
         List<Reservation> activeReservations = reservationController.getActiveReservations();
-        updateTable(activeReservations);
-        JOptionPane.showMessageDialog(this,
-            "Found " + activeReservations.size() + " active reservations",
-            "Active Reservations",
-            JOptionPane.INFORMATION_MESSAGE);
+        
+        // Update the table
+        updateTableWithReservations(tableModel, activeReservations);
     }
 
     private void cancelReservation() {
         int selectedRow = reservationTable.getSelectedRow();
         if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this,
-                "Please select a reservation to cancel",
-                "No Selection",
-                JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select a reservation to cancel");
             return;
         }
 
@@ -80,39 +161,28 @@ public class ReservationPanel extends JPanel {
         Reservation reservation = reservationController.getReservation(reservationId);
         
         if (reservation != null) {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to cancel this reservation?\n\n" +
-                "Spot ID: " + reservation.getSpotId() + "\n" +
-                "Start Time: " + reservation.getStartTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "\n" +
-                "End Time: " + reservation.getEndTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to cancel this reservation?",
                 "Confirm Cancellation",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
+                JOptionPane.YES_NO_OPTION
+            );
             
             if (confirm == JOptionPane.YES_OPTION) {
-                if (reservationController.cancelReservation(reservationId)) {
-                    JOptionPane.showMessageDialog(this,
-                        "Reservation cancelled successfully",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-                    viewActiveReservations(); // Refresh the table
-                } else {
-                    JOptionPane.showMessageDialog(this,
-                        "Failed to cancel reservation. It may already be cancelled or completed.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
-                }
+                reservation.setStatus("CANCELLED");
+                reservation.update(reservation);
+                viewActiveReservations();
+                JOptionPane.showMessageDialog(this, "Reservation cancelled successfully");
             }
+        } else {
+            JOptionPane.showMessageDialog(this, "Reservation not found");
         }
     }
 
     private void extendReservation() {
         int selectedRow = reservationTable.getSelectedRow();
         if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this,
-                "Please select a reservation to extend",
-                "No Selection",
-                JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select a reservation to extend");
             return;
         }
 
@@ -120,62 +190,51 @@ public class ReservationPanel extends JPanel {
         Reservation reservation = reservationController.getReservation(reservationId);
         
         if (reservation != null) {
-            // Create extension dialog
-            JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Extend Reservation", true);
-            dialog.setLayout(new GridLayout(3, 2, 5, 5));
+            String hoursStr = JOptionPane.showInputDialog(
+                this,
+                "Enter number of hours to extend:",
+                "Extend Reservation",
+                JOptionPane.QUESTION_MESSAGE
+            );
             
-            SpinnerNumberModel hoursModel = new SpinnerNumberModel(1, 1, 24, 1);
-            JSpinner hoursSpinner = new JSpinner(hoursModel);
-            
-            dialog.add(new JLabel("Extension Hours:"));
-            dialog.add(hoursSpinner);
-            
-            JButton extendButton = new JButton("Extend");
-            extendButton.addActionListener(e -> {
-                int hours = (Integer) hoursSpinner.getValue();
-                LocalDateTime newEndTime = reservation.getEndTime().plusHours(hours);
-                
-                if (spotController.isSpotAvailable(reservation.getSpotId(), newEndTime)) {
-                    if (reservationController.extendReservation(reservationId, newEndTime)) {
-                        JOptionPane.showMessageDialog(dialog,
-                            "Reservation extended successfully by " + hours + " hours",
-                            "Success",
-                            JOptionPane.INFORMATION_MESSAGE);
-                        dialog.dispose();
-                        viewActiveReservations(); // Refresh the table
-                    } else {
-                        JOptionPane.showMessageDialog(dialog,
-                            "Failed to extend reservation. It may already be cancelled or completed.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE);
-                    }
-                } else {
-                    JOptionPane.showMessageDialog(dialog,
-                        "Cannot extend reservation: Spot is not available for the requested duration",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
+            if (hoursStr != null && !hoursStr.trim().isEmpty()) {
+                try {
+                    int hours = Integer.parseInt(hoursStr);
+                    LocalDateTime currentEndTime = reservation.getEndTime();
+                    LocalDateTime newEndTime = currentEndTime.plusHours(hours);
+                    
+                    reservation.setEndTime(newEndTime);
+                    reservation.update(reservation);
+                    viewActiveReservations();
+                    JOptionPane.showMessageDialog(this, "Reservation extended successfully");
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(this, "Please enter a valid number of hours");
                 }
-            });
-            
-            dialog.add(extendButton);
-            dialog.pack();
-            dialog.setLocationRelativeTo(this);
-            dialog.setVisible(true);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Reservation not found");
         }
     }
 
-    private void updateTable(List<Reservation> reservations) {
-        tableModel.setRowCount(0);
+    private void updateTableWithReservations(DefaultTableModel model, List<Reservation> reservations) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        
         for (Reservation reservation : reservations) {
-            tableModel.addRow(new Object[]{
+            // Get the parking spot using spotController
+            ParkingSpot spot = spotController.getSpotById(reservation.getSpotId());
+            String spotNumber = spot != null ? spot.getSpotNumber() : "Unknown";
+            
+            Object[] rowData = {
                 reservation.getId(),
-                reservation.getSpotId(),
+                spotNumber,
                 reservation.getUserId(),
                 reservation.getVehicleId(),
-                reservation.getStartTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                reservation.getEndTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                reservation.getStartTime().format(formatter),
+                reservation.getEndTime().format(formatter),
                 reservation.getStatus()
-            });
+            };
+            
+            model.addRow(rowData);
         }
     }
 } 
